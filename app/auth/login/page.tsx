@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import Image from "next/image"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -38,10 +39,36 @@ export default function LoginPage() {
     }
   }
 
+  const handleGuestLogin = async () => {
+    const supabase = createClient()
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { error } = await supabase.auth.signInAnonymously()
+      if (error) throw error
+      router.push("/conference")
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "An error occurred")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10 bg-gradient-to-br from-background via-muted/20 to-background">
       <div className="w-full max-w-sm">
-        <Card>
+        <div className="flex justify-center mb-8">
+          <Image
+            src="/logo-full.png"
+            alt="Orbit Conference"
+            width={200}
+            height={60}
+            className="object-contain"
+            priority
+          />
+        </div>
+        <Card className="shadow-xl border-border/50">
           <CardHeader>
             <CardTitle className="text-2xl">Login to Orbit Conference</CardTitle>
             <CardDescription>Enter your email to access your account</CardDescription>
@@ -70,14 +97,26 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
-                {error && <p className="text-sm text-red-500">{error}</p>}
+                {error && <p className="text-sm text-destructive">{error}</p>}
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "Logging in..." : "Login"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full bg-transparent"
+                  disabled={isLoading}
+                  onClick={handleGuestLogin}
+                >
+                  Continue as Guest
                 </Button>
               </div>
               <div className="mt-4 text-center text-sm">
                 Don&apos;t have an account?{" "}
-                <Link href="/auth/sign-up" className="underline underline-offset-4">
+                <Link
+                  href="/auth/sign-up"
+                  className="underline underline-offset-4 hover:text-primary transition-colors"
+                >
                   Sign up
                 </Link>
               </div>

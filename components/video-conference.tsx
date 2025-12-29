@@ -13,6 +13,7 @@ import { WebRTCManager } from "@/lib/webrtc-manager"
 import { SignalingService } from "@/lib/signaling-service"
 import { AudioTranslationManager } from "@/lib/audio-translation-manager"
 import Link from "next/link"
+import Image from "next/image"
 import type { User } from "@supabase/supabase-js"
 
 interface Translation {
@@ -432,19 +433,17 @@ export default function VideoConference({ userSettings, user }: VideoConferenceP
   return (
     <div className="relative flex h-screen w-full flex-col overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
-      <div className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent p-4 backdrop-blur-sm">
+      <div className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent p-4 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600">
-            <Video className="h-5 w-5 text-white" />
-          </div>
+          <Image src="/logo-only.jpg" alt="Orbit" width={40} height={40} className="rounded-full" />
           <div>
             <h1 className="text-lg font-semibold text-white">Orbit Conference</h1>
-            <p className="text-xs text-gray-300">{userSettings?.display_name || user.email}</p>
+            <p className="text-xs text-gray-300">{userSettings?.display_name || user.email || "Guest User"}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" asChild>
+          <Button variant="ghost" size="sm" className="text-white hover:bg-white/20" asChild>
             <Link href="/settings">
               <Settings className="h-4 w-4" />
             </Link>

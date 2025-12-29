@@ -18,7 +18,7 @@ export default async function SettingsPage() {
   const { data: settings } = await supabase.from("user_settings").select("*").eq("id", user.id).single()
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-background p-6">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background p-6">
       <SettingsForm initialSettings={settings} user={user} />
     </main>
   )
