@@ -1,4 +1,4 @@
-import { streamText } from "ai"
+import { generateText } from "ai"
 
 export const maxDuration = 60
 
@@ -13,12 +13,9 @@ export async function POST(req: Request) {
       return Response.json({ error: "No audio file provided" }, { status: 400 })
     }
 
-    // Convert audio blob to base64
     const arrayBuffer = await audioFile.arrayBuffer()
     const base64Audio = Buffer.from(arrayBuffer).toString("base64")
 
-    // Use Gemini to transcribe and translate the audio
-    // Note: Using text generation with audio input for translation
     const languageNames: Record<string, string> = {
       en: "English",
       es: "Spanish",
@@ -35,40 +32,36 @@ export async function POST(req: Request) {
     const sourceLang = languageNames[sourceLanguage] || sourceLanguage
     const targetLang = languageNames[targetLanguage] || targetLanguage
 
-    // Use Gemini for audio transcription and translation
-    const result = await streamText({
-      model: "google/gemini-4-flash-audio",
+    const result = await generateText({
+      model: "google/gemini-2.5-flash-image",
       messages: [
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: `Transcribe this audio from ${sourceLang} and translate it to ${targetLang}. Only output the translated text, nothing else.`,
+              text: `Listen to this audio in ${sourceLang} and translate it to ${targetLang}. Provide ONLY the translated text as if a native ${targetLang} speaker is saying it naturally. No explanations, no original text, just the natural translation.`,
             },
             {
               type: "file",
               data: base64Audio,
-              mediaType: "audio/wav",
+              mimeType: "audio/wav",
             },
           ],
         },
       ],
-      maxOutputTokens: 500,
+      maxTokens: 500,
     })
 
-    let translatedText = ""
-    for await (const chunk of result.textStream) {
-      translatedText += chunk
-    }
+    const translatedText = result.text.trim()
 
-    // For demo purposes, we'll return the translated text
-    // In production, you would also generate translated audio using a TTS service
+    // Note: This returns the text that can be read aloud by browser's speech synthesis
+    // or a TTS API in production for more natural voices
     return Response.json({
-      translatedText: translatedText.trim(),
+      translatedText,
       sourceLanguage,
       targetLanguage,
-      // translatedAudio would come from a TTS service in production
+      nativeSpeech: true, // Flag to indicate this should be spoken aloud
     })
   } catch (error: any) {
     console.error("[v0] Translation API error:", error)

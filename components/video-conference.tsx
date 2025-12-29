@@ -2,19 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import {
-  Mic,
-  MicOff,
-  Video,
-  VideoOff,
-  PhoneOff,
-  Monitor,
-  Languages,
-  Settings,
-  Users,
-  Subtitles,
-  UserPlus,
-} from "lucide-react"
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Monitor, Languages, Settings, Subtitles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import VideoGrid from "./video-grid"
 import ParticipantsList from "./participants-list"
@@ -24,6 +12,8 @@ import AddCoHostDialog from "./add-cohost-dialog"
 import { WebRTCManager } from "@/lib/webrtc-manager"
 import { SignalingService } from "@/lib/signaling-service"
 import { AudioTranslationManager } from "@/lib/audio-translation-manager"
+import Link from "next/link"
+import type { User } from "@supabase/supabase-js"
 
 interface Translation {
   id: string
@@ -40,7 +30,21 @@ interface Participant {
   videoUrl?: string
 }
 
-export default function VideoConference() {
+interface UserSettings {
+  id: string
+  display_name: string | null
+  preferred_language: string | null
+  translation_target_language: string | null
+  enable_auto_translation: boolean | null
+  enable_auto_captions: boolean | null
+}
+
+interface VideoConferenceProps {
+  userSettings: UserSettings | null
+  user: User
+}
+
+export default function VideoConference({ userSettings, user }: VideoConferenceProps) {
   const [isMuted, setIsMuted] = useState(false)
   const [isVideoOff, setIsVideoOff] = useState(false)
   const [isScreenSharing, setIsScreenSharing] = useState(false)
@@ -56,8 +60,8 @@ export default function VideoConference() {
     { id: "local", name: "You", stream: null, isMuted: false },
   ])
   const [translations, setTranslations] = useState<Translation[]>([])
-  const [sourceLanguage, setSourceLanguage] = useState("en")
-  const [targetLanguage, setTargetLanguage] = useState("es")
+  const [sourceLanguage, setSourceLanguage] = useState<string>("en")
+  const [targetLanguage, setTargetLanguage] = useState<string>("es")
 
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const webrtcManagerRef = useRef<WebRTCManager | null>(null)
@@ -182,7 +186,7 @@ export default function VideoConference() {
       // Stop translation
       translationManagerRef.current.stopTranslation()
     }
-  }, [isTranslationActive, sourceLanguage, targetLanguage, localStream])
+  }, [isTranslationActive, userSettings, localStream])
 
   useEffect(() => {
     if (errorMessage) {
@@ -204,6 +208,12 @@ export default function VideoConference() {
       stopCaptionsTranscription()
     }
   }, [isCaptionsActive, localStream])
+
+  useEffect(() => {
+    if (userSettings?.enable_auto_captions) {
+      setIsCaptionsActive(true)
+    }
+  }, [userSettings])
 
   const initializeMedia = async () => {
     try {
@@ -420,44 +430,27 @@ export default function VideoConference() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-zinc-950 text-white">
+    <div className="relative flex h-screen w-full flex-col overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
-      <header className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900 px-6 py-4">
+      <div className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent p-4 backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-cyan-500">
-            <span className="font-bold text-lg">O</span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600">
+            <Video className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="font-semibold text-lg leading-tight">Orbit Conference</h1>
-            <p className="text-xs text-zinc-400">Meeting Room</p>
+            <h1 className="text-lg font-semibold text-white">Orbit Conference</h1>
+            <p className="text-xs text-gray-300">{userSettings?.display_name || user.email}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setShowAddCoHost(true)} className="gap-2">
-            <UserPlus className="h-4 w-4" />
-            <span className="hidden sm:inline">Co-Host</span>
-          </Button>
-
-          <Button
-            variant={showParticipants ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setShowParticipants(!showParticipants)}
-            className="gap-2"
-          >
-            <Users className="h-4 w-4" />
-            <span className="hidden sm:inline">{participants.length}</span>
-          </Button>
-
-          <Button
-            variant={showSettings ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setShowSettings(!showSettings)}
-          >
-            <Settings className="h-4 w-4" />
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/settings">
+              <Settings className="h-4 w-4" />
+            </Link>
           </Button>
         </div>
-      </header>
+      </div>
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">

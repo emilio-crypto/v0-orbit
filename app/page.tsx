@@ -1,9 +1,5 @@
-import VideoConference from "@/components/video-conference"
+import { redirect } from "next/navigation"
 
 export default function Home() {
-  return (
-    <main className="flex min-h-screen flex-col bg-background">
-      <VideoConference />
-    </main>
-  )
+  redirect("/auth/login")
 }

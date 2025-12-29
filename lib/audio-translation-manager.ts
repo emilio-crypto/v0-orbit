@@ -11,11 +11,13 @@ export class AudioTranslationManager {
   private readonly PROCESS_INTERVAL = 2000 // Process every 2 seconds
   private outputAudioContext: AudioContext | null = null
   private isPlayingTranslation = false
+  private speechSynthesis: SpeechSynthesis | null = null
 
   constructor() {
     if (typeof window !== "undefined") {
       this.audioContext = new AudioContext()
       this.outputAudioContext = new AudioContext()
+      this.speechSynthesis = window.speechSynthesis
     }
   }
 
@@ -66,7 +68,6 @@ export class AudioTranslationManager {
     if (this.audioChunks.length === 0) return
 
     try {
-      // Combine audio chunks
       const totalLength = this.audioChunks.reduce((acc, chunk) => acc + chunk.length, 0)
       const combinedAudio = new Float32Array(totalLength)
       let offset = 0
@@ -75,10 +76,8 @@ export class AudioTranslationManager {
         offset += chunk.length
       }
 
-      // Convert to WAV blob
       const audioBlob = this.floatArrayToWavBlob(combinedAudio, this.audioContext!.sampleRate)
 
-      // Send to translation API
       const formData = new FormData()
       formData.append("audio", audioBlob, "audio.wav")
       formData.append("sourceLanguage", sourceLanguage)
@@ -93,24 +92,20 @@ export class AudioTranslationManager {
         const data = await response.json()
 
         if (data.translatedText && this.onTranslationCallback) {
-          // Mark that we're playing translation to avoid feedback loop
           this.isPlayingTranslation = true
 
           this.onTranslationCallback(data.translatedText, audioBlob)
 
-          // Play translated audio if available
-          if (data.translatedAudio) {
-            await this.playTranslatedAudio(data.translatedAudio)
+          if (data.nativeSpeech && this.speechSynthesis) {
+            await this.speakTranslation(data.translatedText, targetLanguage)
           }
 
-          // Reset flag after a delay
           setTimeout(() => {
             this.isPlayingTranslation = false
           }, 1000)
         }
       }
 
-      // Clear processed chunks
       this.audioChunks = []
     } catch (error) {
       console.error("[v0] Translation error:", error)
@@ -171,6 +166,45 @@ export class AudioTranslationManager {
     }
   }
 
+  private async speakTranslation(text: string, language: string): Promise<void> {
+    if (!this.speechSynthesis) return
+
+    return new Promise((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(text)
+
+      // Map language codes to speech synthesis voices
+      const langMap: Record<string, string> = {
+        en: "en-US",
+        es: "es-ES",
+        fr: "fr-FR",
+        de: "de-DE",
+        it: "it-IT",
+        pt: "pt-PT",
+        zh: "zh-CN",
+        ja: "ja-JP",
+        ko: "ko-KR",
+        ar: "ar-SA",
+      }
+
+      utterance.lang = langMap[language] || language
+      utterance.rate = 0.9 // Slightly slower for clarity
+      utterance.pitch = 1.0
+      utterance.volume = 1.0
+
+      utterance.onend = () => {
+        console.log("[v0] Finished speaking translation")
+        resolve()
+      }
+
+      utterance.onerror = (error) => {
+        console.error("[v0] Speech synthesis error:", error)
+        resolve()
+      }
+
+      this.speechSynthesis!.speak(utterance)
+    })
+  }
+
   stopTranslation() {
     this.isTranslating = false
 
@@ -192,6 +226,10 @@ export class AudioTranslationManager {
 
   cleanup() {
     this.stopTranslation()
+
+    if (this.speechSynthesis) {
+      this.speechSynthesis.cancel()
+    }
 
     if (this.audioContext) {
       this.audioContext.close()
