@@ -8,6 +8,7 @@ interface Participant {
   name: string
   stream: MediaStream | null
   isMuted: boolean
+  videoUrl?: string
 }
 
 interface VideoGridProps {
@@ -46,6 +47,13 @@ export default function VideoGrid({ participants, localVideoRef, isTranslationAc
         <div key={participant.id} className="relative overflow-hidden rounded-lg bg-zinc-800">
           {participant.id === "local" ? (
             <video ref={localVideoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
+          ) : participant.videoUrl ? (
+            <iframe
+              src={participant.videoUrl}
+              className="h-full w-full"
+              allow="camera; microphone; autoplay; encrypted-media"
+              allowFullScreen
+            />
           ) : participant.stream ? (
             <video
               ref={(el) => {

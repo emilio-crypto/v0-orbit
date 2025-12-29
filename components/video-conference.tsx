@@ -2,11 +2,25 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Monitor, Languages, Settings, Users } from "lucide-react"
+import {
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  PhoneOff,
+  Monitor,
+  Languages,
+  Settings,
+  Users,
+  Subtitles,
+  UserPlus,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import VideoGrid from "./video-grid"
 import ParticipantsList from "./participants-list"
 import TranslationPanel from "./translation-panel"
+import CaptionsDisplay from "./captions-display"
+import AddCoHostDialog from "./add-cohost-dialog"
 import { WebRTCManager } from "@/lib/webrtc-manager"
 import { SignalingService } from "@/lib/signaling-service"
 import { AudioTranslationManager } from "@/lib/audio-translation-manager"
@@ -18,16 +32,29 @@ interface Translation {
   timestamp: Date
 }
 
+interface Participant {
+  id: string
+  name: string
+  stream: MediaStream | null
+  isMuted: boolean
+  videoUrl?: string
+}
+
 export default function VideoConference() {
   const [isMuted, setIsMuted] = useState(false)
   const [isVideoOff, setIsVideoOff] = useState(false)
   const [isScreenSharing, setIsScreenSharing] = useState(false)
   const [isTranslationActive, setIsTranslationActive] = useState(false)
+  const [isCaptionsActive, setIsCaptionsActive] = useState(false)
+  const [currentCaption, setCurrentCaption] = useState("")
   const [showParticipants, setShowParticipants] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showAddCoHost, setShowAddCoHost] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
-  const [participants, setParticipants] = useState([{ id: "local", name: "You", stream: null, isMuted: false }])
+  const [participants, setParticipants] = useState<Participant[]>([
+    { id: "local", name: "You", stream: null, isMuted: false },
+  ])
   const [translations, setTranslations] = useState<Translation[]>([])
   const [sourceLanguage, setSourceLanguage] = useState("en")
   const [targetLanguage, setTargetLanguage] = useState("es")
@@ -37,6 +64,8 @@ export default function VideoConference() {
   const signalingServiceRef = useRef<SignalingService | null>(null)
   const userIdRef = useRef<string>(`user-${Math.random().toString(36).substring(7)}`)
   const translationManagerRef = useRef<AudioTranslationManager | null>(null)
+  const captionsIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
 
   // Initialize WebRTC and Signaling
   useEffect(() => {
@@ -122,6 +151,12 @@ export default function VideoConference() {
       if (translationManagerRef.current) {
         translationManagerRef.current.cleanup()
       }
+      if (captionsIntervalRef.current) {
+        clearInterval(captionsIntervalRef.current)
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop()
+      }
     }
   }, [])
 
@@ -157,6 +192,18 @@ export default function VideoConference() {
       return () => clearTimeout(timer)
     }
   }, [errorMessage])
+
+  useEffect(() => {
+    if (isCaptionsActive && localStream) {
+      startCaptionsTranscription()
+    } else {
+      stopCaptionsTranscription()
+    }
+
+    return () => {
+      stopCaptionsTranscription()
+    }
+  }, [isCaptionsActive, localStream])
 
   const initializeMedia = async () => {
     try {
@@ -257,6 +304,98 @@ export default function VideoConference() {
     }
   }
 
+  const addCoHost = (name: string, videoUrl: string) => {
+    const coHostId = `cohost-${Date.now()}`
+    setParticipants((prev) => [
+      ...prev,
+      {
+        id: coHostId,
+        name,
+        stream: null,
+        isMuted: false,
+        videoUrl,
+      },
+    ])
+    setShowAddCoHost(false)
+  }
+
+  const startCaptionsTranscription = async () => {
+    if (!localStream) return
+
+    try {
+      const audioContext = new AudioContext()
+      const source = audioContext.createMediaStreamSource(localStream)
+      const destination = audioContext.createMediaStreamDestination()
+      source.connect(destination)
+
+      const mediaRecorder = new MediaRecorder(destination.stream, {
+        mimeType: "audio/webm",
+      })
+      mediaRecorderRef.current = mediaRecorder
+
+      let audioChunks: Blob[] = []
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunks.push(event.data)
+        }
+      }
+
+      mediaRecorder.onstop = async () => {
+        if (audioChunks.length > 0) {
+          const audioBlob = new Blob(audioChunks, { type: "audio/webm" })
+          audioChunks = []
+
+          // Send to transcription API
+          try {
+            const formData = new FormData()
+            formData.append("audio", audioBlob)
+
+            const response = await fetch("/api/transcribe-audio", {
+              method: "POST",
+              body: formData,
+            })
+
+            if (response.ok) {
+              const data = await response.json()
+              if (data.text && data.text.trim()) {
+                setCurrentCaption(data.text)
+              }
+            }
+          } catch (error) {
+            console.error("[v0] Transcription error:", error)
+          }
+        }
+      }
+
+      // Record in 3-second chunks for real-time transcription
+      mediaRecorder.start()
+      captionsIntervalRef.current = setInterval(() => {
+        if (mediaRecorder.state === "recording") {
+          mediaRecorder.stop()
+          mediaRecorder.start()
+        }
+      }, 3000)
+    } catch (error) {
+      console.error("[v0] Error starting captions:", error)
+      setErrorMessage("Unable to start captions. Please check your microphone.")
+    }
+  }
+
+  const stopCaptionsTranscription = () => {
+    if (captionsIntervalRef.current) {
+      clearInterval(captionsIntervalRef.current)
+      captionsIntervalRef.current = null
+    }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop()
+      mediaRecorderRef.current = null
+    }
+
+    setCurrentCaption("")
+  }
+
   const endCall = () => {
     if (localStream) {
       localStream.getTracks().forEach((track) => track.stop())
@@ -275,6 +414,9 @@ export default function VideoConference() {
       translationManagerRef.current.stopTranslation()
       setIsTranslationActive(false)
     }
+
+    stopCaptionsTranscription()
+    setIsCaptionsActive(false)
   }
 
   return (
@@ -292,6 +434,11 @@ export default function VideoConference() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setShowAddCoHost(true)} className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            <span className="hidden sm:inline">Co-Host</span>
+          </Button>
+
           <Button
             variant={showParticipants ? "secondary" : "ghost"}
             size="sm"
@@ -348,6 +495,8 @@ export default function VideoConference() {
               <span>Live Translation Active</span>
             </div>
           )}
+
+          {isCaptionsActive && currentCaption && <CaptionsDisplay caption={currentCaption} />}
         </div>
 
         {/* Sidebar Panels */}
@@ -368,6 +517,8 @@ export default function VideoConference() {
           onTargetLanguageChange={setTargetLanguage}
         />
       )}
+
+      {showAddCoHost && <AddCoHostDialog onClose={() => setShowAddCoHost(false)} onAdd={addCoHost} />}
 
       {/* Control Bar */}
       <div className="border-t border-zinc-800 bg-zinc-900 px-6 py-4">
@@ -402,6 +553,15 @@ export default function VideoConference() {
             <Monitor className="h-5 w-5" />
           </Button>
 
+          <Button
+            onClick={() => setIsCaptionsActive(!isCaptionsActive)}
+            size="lg"
+            variant={isCaptionsActive ? "default" : "secondary"}
+            className={cn("h-12 w-12 rounded-full p-0", isCaptionsActive && "bg-purple-500 hover:bg-purple-600")}
+          >
+            <Subtitles className="h-5 w-5" />
+          </Button>
+
           {/* Translation Toggle */}
           <Button
             onClick={() => setIsTranslationActive(!isTranslationActive)}
@@ -428,6 +588,7 @@ export default function VideoConference() {
           <span>Mic</span>
           <span>Camera</span>
           <span>Share</span>
+          <span>Caption</span>
           <span>Translate</span>
           <span>End</span>
         </div>

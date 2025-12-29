@@ -1,6 +1,6 @@
 "use client"
 
-import { Users, Mic, MicOff } from "lucide-react"
+import { Users, Mic, MicOff, Monitor } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface Participant {
@@ -8,6 +8,7 @@ interface Participant {
   name: string
   stream: MediaStream | null
   isMuted: boolean
+  videoUrl?: string
 }
 
 interface ParticipantsListProps {
@@ -34,6 +35,12 @@ export default function ParticipantsList({ participants }: ParticipantsListProps
 
               <div className="flex-1">
                 <p className="text-sm font-medium">{participant.name}</p>
+                {participant.videoUrl && (
+                  <p className="text-xs text-zinc-400 flex items-center gap-1 mt-0.5">
+                    <Monitor className="h-3 w-3" />
+                    Co-Host
+                  </p>
+                )}
               </div>
 
               {participant.isMuted ? (
