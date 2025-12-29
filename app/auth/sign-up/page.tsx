@@ -42,7 +42,6 @@ export default function SignUpPage() {
         email,
         password,
         options: {
-          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/conference`,
           data: {
             display_name: displayName || email.split("@")[0],
           },
@@ -51,7 +50,8 @@ export default function SignUpPage() {
 
       if (error) throw error
 
-      router.push("/auth/sign-up-success")
+      router.push("/conference")
+      router.refresh()
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
@@ -94,7 +94,7 @@ export default function SignUpPage() {
         <Card className="shadow-xl border-border/50">
           <CardHeader>
             <CardTitle className="text-2xl">Create Account</CardTitle>
-            <CardDescription>Join Orbit Conference</CardDescription>
+            <CardDescription>Join Orbit Conference - No email confirmation required</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSignUp}>
