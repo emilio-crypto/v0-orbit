@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
+import { getNeonClient } from "@/lib/neon/client"
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,50 +15,53 @@ export async function POST(request: NextRequest) {
 
     const { code, name } = await request.json()
 
-    // Find meeting by code
-    const { data: meeting, error: meetingError } = await supabase
-      .from("meetings")
-      .select("*")
-      .eq("code", code.toUpperCase())
-      .is("ended_at", null)
-      .single()
+    const sql = getNeonClient()
 
-    if (meetingError || !meeting) {
+    // Find meeting by code
+    const meetings = await sql`
+      SELECT * FROM meetings
+      WHERE code = ${code.toUpperCase()}
+      AND ended_at IS NULL
+      LIMIT 1
+    `
+
+    if (!meetings || meetings.length === 0) {
       return NextResponse.json({ error: "Meeting not found or has ended" }, { status: 404 })
     }
 
-    // Check if already a participant
-    const { data: existingParticipant } = await supabase
-      .from("participants")
-      .select("*")
-      .eq("meeting_id", meeting.id)
-      .eq("user_id", user.id)
-      .is("left_at", null)
-      .single()
+    const meeting = meetings[0]
 
-    if (existingParticipant) {
-      return NextResponse.json({ meeting, participant: existingParticipant })
+    // Check if already a participant
+    const existingParticipants = await sql`
+      SELECT * FROM participants
+      WHERE meeting_id = ${meeting.id}
+      AND user_id = ${user.id}
+      AND left_at IS NULL
+      LIMIT 1
+    `
+
+    if (existingParticipants && existingParticipants.length > 0) {
+      return NextResponse.json({ meeting, participant: existingParticipants[0] })
     }
 
     // Add as participant
-    const { data: participant, error: participantError } = await supabase
-      .from("participants")
-      .insert({
-        meeting_id: meeting.id,
-        user_id: user.id,
-        name: name || user.email?.split("@")[0] || "Guest",
-        role: "attendee",
-        status: "online",
-      })
-      .select()
-      .single()
+    const participants = await sql`
+      INSERT INTO participants (meeting_id, user_id, name, role, status)
+      VALUES (
+        ${meeting.id},
+        ${user.id},
+        ${name || user.email?.split("@")[0] || "Guest"},
+        'attendee',
+        'online'
+      )
+      RETURNING *
+    `
 
-    if (participantError) {
-      console.error("[v0] Error adding participant:", participantError)
-      return NextResponse.json({ error: participantError.message }, { status: 500 })
+    if (!participants || participants.length === 0) {
+      return NextResponse.json({ error: "Failed to add participant" }, { status: 500 })
     }
 
-    return NextResponse.json({ meeting, participant })
+    return NextResponse.json({ meeting, participant: participants[0] })
   } catch (error) {
     console.error("[v0] Error in join meeting API:", error)
     return NextResponse.json({ error: "Failed to join meeting" }, { status: 500 })

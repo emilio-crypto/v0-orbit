@@ -352,14 +352,22 @@ export default function VideoConference({ userSettings, user }: VideoConferenceP
         onInterimTranscript: (text: string) => {
           setCurrentCaption(text)
         },
-        onFinalTranscript: (text: string) => {
+        onFinalTranscript: async (text: string) => {
           setCurrentCaption(text)
 
-          // Optional: Save to transcription history
-          setTimeout(() => {
-            // Clear after 5 seconds or keep it visible
-            // setCurrentCaption("")
-          }, 5000)
+          try {
+            await fetch("/api/transcriptions/save", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                roomName: "orbit-room-1",
+                sender: userSettings?.display_name || user.email || "Guest",
+                text: text,
+              }),
+            })
+          } catch (error) {
+            console.error("[v0] Failed to save transcription:", error)
+          }
         },
         onError: (error: Error) => {
           console.error("[v0] STT Error:", error)

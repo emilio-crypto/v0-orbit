@@ -7,9 +7,12 @@ import { createClient } from "@/lib/supabase/client"
 import type { User } from "@supabase/supabase-js"
 
 interface UserSettings {
-  targetLanguage: string
-  autoTranslate: boolean
-  autoCaptions: boolean
+  id: string
+  display_name: string | null
+  preferred_language: string | null
+  translation_target_language: string | null
+  enable_auto_translation: boolean | null
+  enable_auto_captions: boolean | null
 }
 
 export default function SettingsPage() {
@@ -21,7 +24,7 @@ export default function SettingsPage() {
   useEffect(() => {
     const supabase = createClient()
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) {
         router.push("/auth/login")
         return
@@ -29,29 +32,34 @@ export default function SettingsPage() {
 
       setUser(user)
 
-      // Load settings from Supabase
-      supabase
-        .from("user_settings")
-        .select("*")
-        .eq("user_id", user.id)
-        .single()
-        .then(({ data, error }) => {
-          if (error) {
-            // Set default settings if none exist
-            setSettings({
-              targetLanguage: "en",
-              autoTranslate: false,
-              autoCaptions: false,
-            })
-          } else {
-            setSettings({
-              targetLanguage: data.target_language || "en",
-              autoTranslate: data.auto_translate || false,
-              autoCaptions: data.auto_captions || false,
-            })
-          }
-          setIsLoading(false)
+      try {
+        const response = await fetch("/api/settings/get")
+        if (response.ok) {
+          const { settings: userSettings } = await response.json()
+          setSettings(userSettings)
+        } else {
+          // Set default settings if none exist
+          setSettings({
+            id: user.id,
+            display_name: user.email?.split("@")[0] || null,
+            preferred_language: "en",
+            translation_target_language: "es",
+            enable_auto_translation: false,
+            enable_auto_captions: false,
+          })
+        }
+      } catch (error) {
+        console.error("[v0] Error loading settings:", error)
+        setSettings({
+          id: user.id,
+          display_name: user.email?.split("@")[0] || null,
+          preferred_language: "en",
+          translation_target_language: "es",
+          enable_auto_translation: false,
+          enable_auto_captions: false,
         })
+      }
+      setIsLoading(false)
     })
   }, [router])
 

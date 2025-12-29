@@ -11,11 +11,20 @@ import { Switch } from "@/components/ui/switch"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import { setDemoSettings, clearDemoUser, type DemoUser, type DemoSettings } from "@/lib/demo-auth"
+import type { User } from "@supabase/supabase-js"
+
+interface UserSettings {
+  id: string
+  display_name: string | null
+  preferred_language: string | null
+  translation_target_language: string | null
+  enable_auto_translation: boolean | null
+  enable_auto_captions: boolean | null
+}
 
 interface SettingsFormProps {
-  initialSettings: DemoSettings | null
-  user: DemoUser
+  initialSettings: UserSettings | null
+  user: User
 }
 
 const languages = [
@@ -33,7 +42,7 @@ const languages = [
 
 export default function SettingsForm({ initialSettings, user }: SettingsFormProps) {
   const router = useRouter()
-  const [displayName, setDisplayName] = useState(initialSettings?.display_name || user.display_name || "")
+  const [displayName, setDisplayName] = useState(initialSettings?.display_name || user.email?.split("@")[0] || "")
   const [preferredLanguage, setPreferredLanguage] = useState(initialSettings?.preferred_language || "en")
   const [targetLanguage, setTargetLanguage] = useState(initialSettings?.translation_target_language || "es")
   const [autoTranslation, setAutoTranslation] = useState(initialSettings?.enable_auto_translation || false)
@@ -48,26 +57,32 @@ export default function SettingsForm({ initialSettings, user }: SettingsFormProp
     setSuccess(false)
 
     try {
-      // Save to localStorage in demo mode
-      const settings: DemoSettings = {
-        id: user.id,
-        display_name: displayName,
-        preferred_language: preferredLanguage,
-        translation_target_language: targetLanguage,
-        enable_auto_translation: autoTranslation,
-        enable_auto_captions: autoCaptions,
-      }
+      const response = await fetch("/api/settings/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          display_name: displayName,
+          preferred_language: preferredLanguage,
+          translation_target_language: targetLanguage,
+          enable_auto_translation: autoTranslation,
+          enable_auto_captions: autoCaptions,
+        }),
+      })
 
-      setDemoSettings(settings)
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 3000)
+      if (response.ok) {
+        setSuccess(true)
+        setTimeout(() => setSuccess(false), 3000)
+      } else {
+        console.error("[v0] Failed to save settings")
+      }
+    } catch (error) {
+      console.error("[v0] Error saving settings:", error)
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleSignOut = async () => {
-    clearDemoUser()
     router.push("/auth/login")
   }
 

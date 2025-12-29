@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
+import { getNeonClient } from "@/lib/neon/client"
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,23 +15,24 @@ export async function POST(request: NextRequest) {
 
     const { roomName, sender, text } = await request.json()
 
-    const { data, error } = await supabase
-      .from("transcriptions")
-      .insert({
-        user_id: user.id,
-        room_name: roomName,
-        sender,
-        text,
-      })
-      .select()
-      .single()
+    const sql = getNeonClient()
 
-    if (error) {
-      console.error("[v0] Error saving transcription:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    const transcriptions = await sql`
+      INSERT INTO transcriptions (user_id, room_name, sender, text)
+      VALUES (
+        ${user.id},
+        ${roomName},
+        ${sender},
+        ${text}
+      )
+      RETURNING *
+    `
+
+    if (!transcriptions || transcriptions.length === 0) {
+      return NextResponse.json({ error: "Failed to save transcription" }, { status: 500 })
     }
 
-    return NextResponse.json({ transcription: data })
+    return NextResponse.json({ transcription: transcriptions[0] })
   } catch (error) {
     console.error("[v0] Error in save transcription API:", error)
     return NextResponse.json({ error: "Failed to save transcription" }, { status: 500 })
