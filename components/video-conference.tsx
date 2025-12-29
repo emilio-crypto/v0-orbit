@@ -15,6 +15,7 @@ import { AudioTranslationManager } from "@/lib/audio-translation-manager"
 import Link from "next/link"
 import Image from "next/image"
 import type { User } from "@supabase/supabase-js"
+import { WebSpeechSTT } from "@/lib/web-speech-stt"
 
 interface Translation {
   id: string
@@ -71,6 +72,7 @@ export default function VideoConference({ userSettings, user }: VideoConferenceP
   const translationManagerRef = useRef<AudioTranslationManager | null>(null)
   const captionsIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const webSpeechSTTRef = useRef<any>(null)
 
   // Initialize WebRTC and Signaling
   useEffect(() => {
@@ -161,6 +163,10 @@ export default function VideoConference({ userSettings, user }: VideoConferenceP
       }
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop()
+      }
+      if (webSpeechSTTRef.current) {
+        webSpeechSTTRef.current.stop()
+        webSpeechSTTRef.current = null
       }
     }
   }, [])
@@ -341,59 +347,29 @@ export default function VideoConference({ userSettings, user }: VideoConferenceP
     }
 
     try {
-      const audioContext = new AudioContext()
-      const source = audioContext.createMediaStreamSource(localStream)
-      const destination = audioContext.createMediaStreamDestination()
-      source.connect(destination)
+      const webSpeechSTT = new WebSpeechSTT({
+        sourceLanguage: sourceLanguage,
+        onInterimTranscript: (text: string) => {
+          setCurrentCaption(text)
+        },
+        onFinalTranscript: (text: string) => {
+          setCurrentCaption(text)
 
-      const mediaRecorder = new MediaRecorder(destination.stream, {
-        mimeType: "audio/webm",
+          // Optional: Save to transcription history
+          setTimeout(() => {
+            // Clear after 5 seconds or keep it visible
+            // setCurrentCaption("")
+          }, 5000)
+        },
+        onError: (error: Error) => {
+          console.error("[v0] STT Error:", error)
+          setErrorMessage("Speech recognition error. Please check your microphone.")
+        },
       })
-      mediaRecorderRef.current = mediaRecorder
 
-      let audioChunks: Blob[] = []
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunks.push(event.data)
-        }
-      }
-
-      mediaRecorder.onstop = async () => {
-        if (audioChunks.length > 0) {
-          const audioBlob = new Blob(audioChunks, { type: "audio/webm" })
-          audioChunks = []
-
-          // Send to transcription API
-          try {
-            const formData = new FormData()
-            formData.append("audio", audioBlob)
-
-            const response = await fetch("/api/transcribe-audio", {
-              method: "POST",
-              body: formData,
-            })
-
-            if (response.ok) {
-              const data = await response.json()
-              if (data.text && data.text.trim()) {
-                setCurrentCaption(data.text)
-              }
-            }
-          } catch (error) {
-            console.error("[v0] Transcription error:", error)
-          }
-        }
-      }
-
-      // Record in 3-second chunks for real-time transcription
-      mediaRecorder.start()
-      captionsIntervalRef.current = setInterval(() => {
-        if (mediaRecorder.state === "recording") {
-          mediaRecorder.stop()
-          mediaRecorder.start()
-        }
-      }, 3000)
+      webSpeechSTTRef.current = webSpeechSTT
+      webSpeechSTTRef.current.start()
+      console.log("[v0] Web Speech STT started for live captions")
     } catch (error) {
       console.error("[v0] Error starting captions:", error)
       setErrorMessage("Unable to start captions. Please check your microphone.")
@@ -401,14 +377,9 @@ export default function VideoConference({ userSettings, user }: VideoConferenceP
   }
 
   const stopCaptionsTranscription = () => {
-    if (captionsIntervalRef.current) {
-      clearInterval(captionsIntervalRef.current)
-      captionsIntervalRef.current = null
-    }
-
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop()
-      mediaRecorderRef.current = null
+    if (webSpeechSTTRef.current) {
+      webSpeechSTTRef.current.stop()
+      webSpeechSTTRef.current = null
     }
 
     setCurrentCaption("")
