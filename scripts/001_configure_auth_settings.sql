@@ -15,7 +15,7 @@
 --
 -- 3. Site URL should be set to your app URL (already configured via environment variables)
 
--- Create a helper function to handle new user profile creation
+-- Updated to handle both anonymous and email users properly
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -26,9 +26,13 @@ BEGIN
   VALUES (
     NEW.id,
     NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'display_name', 
-             SPLIT_PART(NEW.email, '@', 1),
-             'Anonymous User'),
+    COALESCE(
+      NEW.raw_user_meta_data->>'display_name',
+      CASE 
+        WHEN NEW.email IS NOT NULL THEN SPLIT_PART(NEW.email, '@', 1)
+        ELSE 'Guest ' || SUBSTRING(NEW.id::text FROM 1 FOR 8)
+      END
+    ),
     NOW(),
     NOW()
   )
