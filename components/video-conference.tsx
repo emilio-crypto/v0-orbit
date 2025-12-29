@@ -492,74 +492,82 @@ export default function VideoConference({ userSettings, user }: VideoConferenceP
 
       {/* Control Bar */}
       <div className="border-t border-zinc-800 bg-zinc-900 px-6 py-4">
-        <div className="flex items-center justify-center gap-3">
-          {/* Audio Toggle */}
-          <Button
-            onClick={toggleMute}
-            size="lg"
-            variant={isMuted ? "destructive" : "secondary"}
-            className={cn("h-12 w-12 rounded-full p-0", isMuted && "bg-red-500 hover:bg-red-600")}
-          >
-            {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-          </Button>
+        <div className="flex items-center justify-between gap-3">
+          {/* Left: Audio and Video controls */}
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={toggleMute}
+              size="lg"
+              variant={isMuted ? "destructive" : "secondary"}
+              className={cn("h-12 w-12 rounded-md p-0", isMuted && "bg-red-500 hover:bg-red-600")}
+            >
+              {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+            </Button>
 
-          {/* Video Toggle */}
-          <Button
-            onClick={toggleVideo}
-            size="lg"
-            variant={isVideoOff ? "destructive" : "secondary"}
-            className={cn("h-12 w-12 rounded-full p-0", isVideoOff && "bg-red-500 hover:bg-red-600")}
-          >
-            {isVideoOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
-          </Button>
+            <Button
+              onClick={toggleVideo}
+              size="lg"
+              variant={isVideoOff ? "destructive" : "secondary"}
+              className={cn("h-12 w-12 rounded-md p-0", isVideoOff && "bg-red-500 hover:bg-red-600")}
+            >
+              {isVideoOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+            </Button>
+          </div>
 
-          {/* Screen Share */}
-          <Button
-            onClick={toggleScreenShare}
-            size="lg"
-            variant={isScreenSharing ? "default" : "secondary"}
-            className={cn("h-12 w-12 rounded-full p-0", isScreenSharing && "bg-blue-500 hover:bg-blue-600")}
-          >
-            <Monitor className="h-5 w-5" />
-          </Button>
+          {/* Center: Other controls */}
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={toggleScreenShare}
+              size="lg"
+              variant={isScreenSharing ? "default" : "secondary"}
+              className={cn("h-12 w-12 rounded-md p-0", isScreenSharing && "bg-blue-500 hover:bg-blue-600")}
+            >
+              <Monitor className="h-5 w-5" />
+            </Button>
 
-          <Button
-            onClick={() => setIsCaptionsActive(!isCaptionsActive)}
-            size="lg"
-            variant={isCaptionsActive ? "default" : "secondary"}
-            className={cn("h-12 w-12 rounded-full p-0", isCaptionsActive && "bg-purple-500 hover:bg-purple-600")}
-          >
-            <Subtitles className="h-5 w-5" />
-          </Button>
+            <Button
+              onClick={() => setIsCaptionsActive(!isCaptionsActive)}
+              size="lg"
+              variant={isCaptionsActive ? "default" : "secondary"}
+              className={cn("h-12 w-12 rounded-md p-0", isCaptionsActive && "bg-purple-500 hover:bg-purple-600")}
+            >
+              <Subtitles className="h-5 w-5" />
+            </Button>
 
-          {/* Translation Toggle */}
-          <Button
-            onClick={() => setIsTranslationActive(!isTranslationActive)}
-            size="lg"
-            variant={isTranslationActive ? "default" : "secondary"}
-            className={cn("h-12 w-12 rounded-full p-0", isTranslationActive && "bg-emerald-500 hover:bg-emerald-600")}
-          >
-            <Languages className="h-5 w-5" />
-          </Button>
+            <Button
+              onClick={() => setIsTranslationActive(!isTranslationActive)}
+              size="lg"
+              variant={isTranslationActive ? "default" : "secondary"}
+              className={cn("h-12 w-12 rounded-md p-0", isTranslationActive && "bg-emerald-500 hover:bg-emerald-600")}
+            >
+              <Languages className="h-5 w-5" />
+            </Button>
+          </div>
 
-          {/* End Call */}
-          <Button
-            onClick={endCall}
-            size="lg"
-            variant="destructive"
-            className="h-12 w-12 rounded-full bg-red-600 p-0 hover:bg-red-700"
-          >
-            <PhoneOff className="h-5 w-5" />
-          </Button>
+          {/* Right: End Call */}
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={endCall}
+              size="lg"
+              variant="destructive"
+              className="h-12 w-12 rounded-md bg-red-600 p-0 hover:bg-red-700"
+            >
+              <PhoneOff className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
 
         {/* Mobile Labels */}
-        <div className="mt-3 flex justify-center gap-3 text-xs text-zinc-400 sm:hidden">
-          <span>Mic</span>
-          <span>Camera</span>
-          <span>Share</span>
-          <span>Caption</span>
-          <span>Translate</span>
+        <div className="mt-3 flex justify-between gap-3 text-xs text-zinc-400 sm:hidden">
+          <div className="flex gap-3">
+            <span>Mic</span>
+            <span>Camera</span>
+          </div>
+          <div className="flex gap-3">
+            <span>Share</span>
+            <span>Caption</span>
+            <span>Translate</span>
+          </div>
           <span>End</span>
         </div>
       </div>
