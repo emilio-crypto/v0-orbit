@@ -333,6 +333,13 @@ export default function VideoConference({ userSettings, user }: VideoConferenceP
   const startCaptionsTranscription = async () => {
     if (!localStream) return
 
+    const audioTracks = localStream.getAudioTracks()
+    if (audioTracks.length === 0) {
+      console.error("[v0] No audio track available in stream")
+      setErrorMessage("No microphone detected. Please enable your microphone.")
+      return
+    }
+
     try {
       const audioContext = new AudioContext()
       const source = audioContext.createMediaStreamSource(localStream)
