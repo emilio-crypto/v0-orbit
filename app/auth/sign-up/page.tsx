@@ -2,7 +2,6 @@
 
 import type React from "react"
 
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,6 +10,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import Image from "next/image"
+import { createClient } from "@/lib/supabase/client"
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("")
@@ -23,7 +23,6 @@ export default function SignUpPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
@@ -34,6 +33,11 @@ export default function SignUpPage() {
     }
 
     try {
+      if (!email || !password) {
+        throw new Error("Please enter email and password")
+      }
+
+      const supabase = createClient()
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -44,7 +48,9 @@ export default function SignUpPage() {
           },
         },
       })
+
       if (error) throw error
+
       router.push("/auth/sign-up-success")
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
@@ -54,14 +60,17 @@ export default function SignUpPage() {
   }
 
   const handleGuestLogin = async () => {
-    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
     try {
+      const supabase = createClient()
       const { error } = await supabase.auth.signInAnonymously()
+
       if (error) throw error
+
       router.push("/conference")
+      router.refresh()
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {

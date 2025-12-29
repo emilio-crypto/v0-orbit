@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 
+const GEMINI_API_KEY = "AIzaSyDyp7WvpzYIvGHVOb2xKT1NFpMROV_JE9w"
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
@@ -9,19 +11,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No audio file provided" }, { status: 400 })
     }
 
-    // Convert audio blob to base64
     const arrayBuffer = await audioFile.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
     const base64Audio = buffer.toString("base64")
 
-    // Use Gemini for audio transcription
     const response = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-goog-api-key": process.env.GOOGLE_API_KEY || "",
+          "x-goog-api-key": GEMINI_API_KEY,
         },
         body: JSON.stringify({
           contents: [

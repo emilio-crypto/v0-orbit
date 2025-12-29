@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,20 +11,11 @@ import { Switch } from "@/components/ui/switch"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import type { User } from "@supabase/supabase-js"
-
-interface UserSettings {
-  id: string
-  display_name: string | null
-  preferred_language: string | null
-  translation_target_language: string | null
-  enable_auto_translation: boolean | null
-  enable_auto_captions: boolean | null
-}
+import { setDemoSettings, clearDemoUser, type DemoUser, type DemoSettings } from "@/lib/demo-auth"
 
 interface SettingsFormProps {
-  initialSettings: UserSettings | null
-  user: User
+  initialSettings: DemoSettings | null
+  user: DemoUser
 }
 
 const languages = [
@@ -43,48 +33,41 @@ const languages = [
 
 export default function SettingsForm({ initialSettings, user }: SettingsFormProps) {
   const router = useRouter()
-  const [displayName, setDisplayName] = useState(initialSettings?.display_name || user.email || "")
+  const [displayName, setDisplayName] = useState(initialSettings?.display_name || user.display_name || "")
   const [preferredLanguage, setPreferredLanguage] = useState(initialSettings?.preferred_language || "en")
   const [targetLanguage, setTargetLanguage] = useState(initialSettings?.translation_target_language || "es")
   const [autoTranslation, setAutoTranslation] = useState(initialSettings?.enable_auto_translation || false)
   const [autoCaptions, setAutoCaptions] = useState(initialSettings?.enable_auto_captions || false)
   const [isSaving, setIsSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
   const isGuestUser = user.is_anonymous || false
 
   const handleSave = async () => {
     setIsSaving(true)
-    setError(null)
     setSuccess(false)
-    const supabase = createClient()
 
     try {
-      const { error } = await supabase.from("user_settings").upsert({
+      // Save to localStorage in demo mode
+      const settings: DemoSettings = {
         id: user.id,
         display_name: displayName,
         preferred_language: preferredLanguage,
         translation_target_language: targetLanguage,
         enable_auto_translation: autoTranslation,
         enable_auto_captions: autoCaptions,
-        updated_at: new Date().toISOString(),
-      })
+      }
 
-      if (error) throw error
-
+      setDemoSettings(settings)
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
-    } catch (err: any) {
-      setError(err.message || "Failed to save settings")
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleSignOut = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
+    clearDemoUser()
     router.push("/auth/login")
   }
 
@@ -183,7 +166,6 @@ export default function SettingsForm({ initialSettings, user }: SettingsFormProp
             </div>
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
           {success && <p className="text-sm text-emerald-600 dark:text-emerald-400">Settings saved successfully!</p>}
 
           <div className="flex gap-3 pt-4">

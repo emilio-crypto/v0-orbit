@@ -2,6 +2,8 @@ import { generateText } from "ai"
 
 export const maxDuration = 60
 
+const GEMINI_API_KEY = "AIzaSyDyp7WvpzYIvGHVOb2xKT1NFpMROV_JE9w"
+
 export async function POST(req: Request) {
   try {
     const formData = await req.formData()
@@ -34,6 +36,7 @@ export async function POST(req: Request) {
 
     const result = await generateText({
       model: "google/gemini-2.5-flash-image",
+      apiKey: GEMINI_API_KEY,
       messages: [
         {
           role: "user",
@@ -55,13 +58,11 @@ export async function POST(req: Request) {
 
     const translatedText = result.text.trim()
 
-    // Note: This returns the text that can be read aloud by browser's speech synthesis
-    // or a TTS API in production for more natural voices
     return Response.json({
       translatedText,
       sourceLanguage,
       targetLanguage,
-      nativeSpeech: true, // Flag to indicate this should be spoken aloud
+      nativeSpeech: true,
     })
   } catch (error: any) {
     console.error("[v0] Translation API error:", error)
